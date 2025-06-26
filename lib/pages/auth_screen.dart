@@ -60,7 +60,8 @@ class _AuthScreenState extends State<AuthScreen> {
         );
       } else {
         // --- LOGIKA REGISTER ---
-        final userCredentials = await _firebaseAuth.createUserWithEmailAndPassword(
+        final userCredentials =
+            await _firebaseAuth.createUserWithEmailAndPassword(
           email: _enteredEmail,
           password: _enteredPassword,
         );
@@ -91,7 +92,9 @@ class _AuthScreenState extends State<AuthScreen> {
         errorMessage = 'Alamat email tidak valid.';
       } else if (error.code == 'weak-password') {
         errorMessage = 'Kata sandi terlalu lemah.';
-      } else if (error.code == 'user-not-found' || error.code == 'wrong-password' || error.code == 'invalid-credential') {
+      } else if (error.code == 'user-not-found' ||
+          error.code == 'wrong-password' ||
+          error.code == 'invalid-credential') {
         errorMessage = 'Email atau kata sandi yang Anda masukkan salah.';
       }
 
@@ -110,7 +113,8 @@ class _AuthScreenState extends State<AuthScreen> {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Terjadi kesalahan yang tidak diketahui. Coba lagi nanti.'),
+            content: const Text(
+                'Terjadi kesalahan yang tidak diketahui. Coba lagi nanti.'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -148,13 +152,16 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.yellowAccent.shade700, width: 1.5),
+          borderSide:
+              BorderSide(color: Colors.yellowAccent.shade700, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.yellowAccent.shade700, width: 1.5),
+          borderSide:
+              BorderSide(color: Colors.yellowAccent.shade700, width: 1.5),
         ),
-        errorStyle: TextStyle(color: Colors.yellowAccent.shade700, fontWeight: FontWeight.bold),
+        errorStyle: TextStyle(
+            color: Colors.yellowAccent.shade700, fontWeight: FontWeight.bold),
       );
     }
 
@@ -174,7 +181,8 @@ class _AuthScreenState extends State<AuthScreen> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 32.0, vertical: 20.0),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -200,8 +208,11 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      _isLoginMode ? 'Masuk untuk mengelola keuanganmu' : 'Isi data untuk memulai',
-                      style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.8)),
+                      _isLoginMode
+                          ? 'Masuk untuk mengelola waktumu'
+                          : 'Isi data untuk memulai',
+                      style: TextStyle(
+                          fontSize: 16, color: Colors.white.withOpacity(0.8)),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 48),
@@ -211,7 +222,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16.0),
                         child: TextFormField(
-                          decoration: buildInputDecoration('Nama Lengkap', Icons.person_outline),
+                          decoration: buildInputDecoration(
+                              'Nama Lengkap', Icons.person_outline),
                           style: const TextStyle(color: Colors.white),
                           enableSuggestions: false,
                           validator: (value) {
@@ -228,13 +240,16 @@ class _AuthScreenState extends State<AuthScreen> {
 
                     // Input field untuk Email
                     TextFormField(
-                      decoration: buildInputDecoration('Email', Icons.email_outlined),
+                      decoration:
+                          buildInputDecoration('Email', Icons.email_outlined),
                       style: const TextStyle(color: Colors.white),
                       keyboardType: TextInputType.emailAddress,
                       autocorrect: false,
                       textCapitalization: TextCapitalization.none,
                       validator: (value) {
-                        if (value == null || !value.contains('@') || !value.contains('.')) {
+                        if (value == null ||
+                            !value.contains('@') ||
+                            !value.contains('.')) {
                           return 'Masukkan alamat email yang valid';
                         }
                         return null;
@@ -247,7 +262,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
                     // Input field untuk Kata Sandi
                     TextFormField(
-                      decoration: buildInputDecoration('Kata Sandi', Icons.lock_outline),
+                      decoration: buildInputDecoration(
+                          'Kata Sandi', Icons.lock_outline),
                       style: const TextStyle(color: Colors.white),
                       obscureText: true,
                       validator: (value) {
@@ -265,11 +281,14 @@ class _AuthScreenState extends State<AuthScreen> {
                     // Input field untuk Konfirmasi Kata Sandi (hanya tampil saat mode Register)
                     if (!_isLoginMode)
                       TextFormField(
-                        decoration: buildInputDecoration('Konfirmasi Kata Sandi', Icons.lock_person_outlined),
+                        decoration: buildInputDecoration(
+                            'Konfirmasi Kata Sandi',
+                            Icons.lock_person_outlined),
                         style: const TextStyle(color: Colors.white),
                         obscureText: true,
                         validator: (value) {
-                          _formKey.currentState?.save(); // Simpan form untuk dapat _enteredPassword
+                          _formKey.currentState
+                              ?.save(); // Simpan form untuk dapat _enteredPassword
                           if (value != _enteredPassword) {
                             return 'Kata sandi tidak cocok';
                           }
@@ -277,7 +296,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         },
                       ),
                     const SizedBox(height: 30),
-                    
+
                     // Tombol utama dengan efek bayangan dan gaya modern
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(
@@ -295,28 +314,38 @@ class _AuthScreenState extends State<AuthScreen> {
                           ? SizedBox(
                               height: 20,
                               width: 20,
-                              child: CircularProgressIndicator(strokeWidth: 3, valueColor: AlwaysStoppedAnimation<Color>(Colors.teal.shade800)),
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 3,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.teal.shade800)),
                             )
                           : Text(
                               _isLoginMode ? 'MASUK' : 'DAFTAR',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 1),
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  letterSpacing: 1),
                             ),
                     ),
                     const SizedBox(height: 20),
-                    
+
                     // Tombol untuk beralih mode
                     if (!_isLoading)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            _isLoginMode ? 'Belum punya akun?' : 'Sudah punya akun?',
-                            style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                            _isLoginMode
+                                ? 'Belum punya akun?'
+                                : 'Sudah punya akun?',
+                            style:
+                                TextStyle(color: Colors.white.withOpacity(0.8)),
                           ),
                           TextButton(
                             onPressed: _toggleFormMode,
                             style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                             ),
                             child: Text(
                               _isLoginMode ? 'Daftar di sini' : 'Masuk di sini',

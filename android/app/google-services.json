@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "237046714496",
+    "project_id": "task-manager-22d9b",
+    "storage_bucket": "task-manager-22d9b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237046714496:android:7b36e0fb482f0728f3d665",
+        "android_client_info": {
+          "package_name": "com.example.tugasanalisis"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPp9tjcrnAYMsJhofZAPVLd_SHpIvUhZY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

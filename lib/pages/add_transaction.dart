@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class TransactionPage extends StatefulWidget {
   const TransactionPage({super.key});
@@ -45,34 +47,63 @@ class _TransactionPageState extends State<TransactionPage> {
     }
   }
 
-  void _saveTask() {
-    if (_taskNameController.text.isEmpty || _taskDetailController.text.isEmpty ||
-        _selectedDate == null || _selectedTime == null || _selectedCategory == null || _selectedPriority == null) {
+  void _saveTask() async {
+    if (_taskNameController.text.isEmpty ||
+        _taskDetailController.text.isEmpty ||
+        _selectedDate == null ||
+        _selectedTime == null ||
+        _selectedCategory == null ||
+        _selectedPriority == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Please fill in all fields")),
+        const SnackBar(content: Text("Please fill in all fields")),
       );
       return;
     }
 
-    final newTask = {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User tidak ditemukan")),
+      );
+      return;
+    }
+
+    final taskData = {
       'title': _taskNameController.text,
       'details': _taskDetailController.text,
       'date': DateFormat.yMd().format(_selectedDate!),
       'time': _selectedTime!.format(context),
       'category': _selectedCategory!,
       'priority': _selectedPriority!,
+      'created_at': FieldValue.serverTimestamp(),
     };
 
-    Navigator.pop(context, newTask);
+    try {
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(user.uid)
+          .collection('user_tasks')
+          .add(taskData);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Task berhasil ditambahkan")),
+      );
+
+      Navigator.pop(context); // Kembali ke halaman sebelumnya
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal menambahkan task: $e")),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Add Task", style: TextStyle(color: Colors.white)),
+        title: const Text("Add Task", style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.teal,
-        iconTheme: IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -80,33 +111,41 @@ class _TransactionPageState extends State<TransactionPage> {
           children: [
             TextField(
               controller: _taskNameController,
-              decoration: InputDecoration(labelText: 'Task Name'),
+              decoration: const InputDecoration(labelText: 'Task Name'),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             TextField(
               controller: _taskDetailController,
-              decoration: InputDecoration(labelText: 'Task Details'),
+              decoration: const InputDecoration(labelText: 'Task Details'),
               maxLines: 2,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_selectedDate == null ? 'No Date Chosen!' : 'Picked Date: ${DateFormat.yMd().format(_selectedDate!)}'),
-                TextButton(onPressed: () => _selectDate(context), child: Text('Choose Date')),
+                Text(_selectedDate == null
+                    ? 'No Date Chosen!'
+                    : 'Picked Date: ${DateFormat.yMd().format(_selectedDate!)}'),
+                TextButton(
+                    onPressed: () => _selectDate(context),
+                    child: const Text('Choose Date')),
               ],
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_selectedTime == null ? 'No Time Chosen!' : 'Picked Time: ${_selectedTime!.format(context)}'),
-                TextButton(onPressed: () => _selectTime(context), child: Text('Choose Time')),
+                Text(_selectedTime == null
+                    ? 'No Time Chosen!'
+                    : 'Picked Time: ${_selectedTime!.format(context)}'),
+                TextButton(
+                    onPressed: () => _selectTime(context),
+                    child: const Text('Choose Time')),
               ],
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             DropdownButtonFormField<String>(
               value: _selectedCategory,
-              hint: Text("Select Category"),
+              hint: const Text("Select Category"),
               items: _categories.map((category) {
                 return DropdownMenuItem(value: category, child: Text(category));
               }).toList(),
@@ -115,12 +154,12 @@ class _TransactionPageState extends State<TransactionPage> {
                   _selectedCategory = value;
                 });
               },
-              decoration: InputDecoration(labelText: 'Category'),
+              decoration: const InputDecoration(labelText: 'Category'),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             DropdownButtonFormField<String>(
               value: _selectedPriority,
-              hint: Text("Select Priority"),
+              hint: const Text("Select Priority"),
               items: _priorities.map((priority) {
                 return DropdownMenuItem(value: priority, child: Text(priority));
               }).toList(),
@@ -129,10 +168,10 @@ class _TransactionPageState extends State<TransactionPage> {
                   _selectedPriority = value;
                 });
               },
-              decoration: InputDecoration(labelText: 'Priority'),
+              decoration: const InputDecoration(labelText: 'Priority'),
             ),
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: _saveTask, child: Text('Add Task')),
+            const SizedBox(height: 20),
+            ElevatedButton(onPressed: _saveTask, child: const Text('Add Task')),
           ],
         ),
       ),

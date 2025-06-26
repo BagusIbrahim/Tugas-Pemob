@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:calendar_appbar/calendar_appbar.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Impor Firebase Auth
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:tugasanalisis/pages/add_transaction.dart';
 import 'package:tugasanalisis/pages/home_page.dart';
 import 'package:tugasanalisis/pages/analityc.dart';
 import '../pages/auth_screen.dart';
-
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -17,42 +17,17 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   DateTime selectedDate = DateTime.now();
-  // State untuk menyimpan daftar tugas/transaksi
-  List<Map<String, String>> tasks = [];
 
-  // Fungsi untuk menambahkan tugas baru ke dalam list
-  void _addTask(Map<String, String> task) {
-    setState(() {
-      tasks.add(task);
-    });
-  }
-
-  // Fungsi untuk memperbarui tugas yang sudah ada
-  void _updateTask(int index, Map<String, String> updatedTask) {
-    setState(() {
-      tasks[index] = updatedTask;
-    });
-  }
-
-  // Fungsi untuk menghapus tugas
-  void _deleteTask(int index) {
-    setState(() {
-      tasks.removeAt(index);
-    });
-  }
-
-  // --- FUNGSI LOGOUT BARU ---
+  // Fungsi logout
   Future<void> _logout() async {
     await FirebaseAuth.instance.signOut();
-    // Kembali ke halaman login setelah logout
     if (mounted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => const AuthScreen()),
       );
     }
   }
-  
-  // Fungsi untuk menampilkan dialog konfirmasi logout
+
   void _showLogoutDialog() {
     showDialog(
       context: context,
@@ -69,8 +44,8 @@ class _MainPageState extends State<MainPage> {
           FilledButton(
             child: const Text('Logout'),
             onPressed: () {
-              Navigator.of(ctx).pop(); // Tutup dialog
-              _logout(); // Panggil fungsi logout
+              Navigator.of(ctx).pop();
+              _logout();
             },
           ),
         ],
@@ -78,38 +53,60 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
+  // Fungsi untuk simpan task ke Firestore
+  Future<void> _addTask(Map<String, String> task) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(user.uid)
+          .collection('user_tasks')
+          .add({
+        'title': task['title'],
+        'details': task['details'],
+        'date': task['date'],
+        'time': task['time'],
+        'category': task['category'],
+        'priority': task['priority'],
+        'created_at': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Task berhasil disimpan ke Firebase')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menyimpan task: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // DIUBAH: Mengganti CalendarAppBar dengan AppBar standar untuk menambahkan menu drawer
       appBar: AppBar(
         title: const Text("Beranda"),
         backgroundColor: Colors.teal,
-        // Properti actions tidak lagi dibutuhkan di sini
       ),
-      // DITAMBAHKAN: Drawer untuk menu samping
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.teal,
-              ),
+              decoration: BoxDecoration(color: Colors.teal),
               child: Text(
                 'Menu',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                ),
+                style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
             ListTile(
               leading: const Icon(Icons.logout),
               title: const Text('Logout'),
               onTap: () {
-                Navigator.pop(context); // Tutup drawer
-                _showLogoutDialog(); // Tampilkan dialog konfirmasi
+                Navigator.pop(context);
+                _showLogoutDialog();
               },
             ),
           ],
@@ -118,19 +115,16 @@ class _MainPageState extends State<MainPage> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final newTask = await Navigator.of(context).push<Map<String, String>>(
-            MaterialPageRoute(
-              builder: (context) => TransactionPage(),
-            ),
+            MaterialPageRoute(builder: (context) => const TransactionPage()),
           );
 
           if (newTask != null) {
-            _addTask(newTask);
+            await _addTask(newTask);
           }
         },
         backgroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-      // DIUBAH: Membungkus body dengan Column untuk menambahkan CalendarAppBar
       body: Column(
         children: [
           CalendarAppBar(
@@ -146,9 +140,49 @@ class _MainPageState extends State<MainPage> {
           ),
           Expanded(
             child: HomePage(
-              tasks: tasks,
-              onTaskUpdate: _updateTask,
-              onTaskDelete: _deleteTask,
+              onTaskUpdate:
+                  (String docId, Map<String, String> updatedTask) async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('tasks')
+                      .doc(user.uid)
+                      .collection('user_tasks')
+                      .doc(docId)
+                      .update(updatedTask);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Task berhasil diperbarui')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Gagal update task: $e')),
+                  );
+                }
+              },
+              onTaskDelete: (String docId) async {
+                final user = FirebaseAuth.instance.currentUser;
+                if (user == null) return;
+
+                try {
+                  await FirebaseFirestore.instance
+                      .collection('tasks')
+                      .doc(user.uid)
+                      .collection('user_tasks')
+                      .doc(docId)
+                      .delete();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Task berhasil dihapus')),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Gagal hapus task: $e')),
+                  );
+                }
+              },
             ),
           ),
         ],
@@ -161,17 +195,15 @@ class _MainPageState extends State<MainPage> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             IconButton(
-              onPressed: () {
-                // Tidak melakukan apa-apa karena sudah di halaman utama
-              },
+              onPressed: () {},
               icon: const Icon(Icons.home, color: Colors.teal),
             ),
-            const SizedBox(width: 40), 
+            const SizedBox(width: 40),
             IconButton(
               onPressed: () {
-                Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) => const AnalitycPage(),
-                ));
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const AnalitycPage()),
+                );
               },
               icon: const Icon(Icons.analytics, color: Colors.teal),
             ),

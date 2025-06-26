@@ -1,131 +1,161 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class HomePage extends StatefulWidget {
-  final List<Map<String, String>> tasks;
-  final Function(int, Map<String, String>) onTaskUpdate;
-  final Function(int) onTaskDelete;
+class HomePage extends StatelessWidget {
+  final Function(String, Map<String, String>) onTaskUpdate;
+  final Function(String) onTaskDelete;
 
   const HomePage({
     super.key,
-    required this.tasks,
     required this.onTaskUpdate,
     required this.onTaskDelete,
   });
 
   @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Center(
-                child: Text(
-                  "Your Task Manager",
-                  style: GoogleFonts.montserrat(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal,
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                "Your Tasks",
-                style: GoogleFonts.montserrat(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            if (widget.tasks.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Center(
-                  child: Text(
-                    "No tasks yet!",
-                    style: GoogleFonts.montserrat(
-                        fontSize: 14, fontWeight: FontWeight.w500),
-                  ),
-                ),
-              ),
-            ...widget.tasks.asMap().entries.map((entry) {
-              int index = entry.key;
-              Map<String, String> task = entry.value;
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Card(
-                  elevation: 10,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ListTile(
-                          title: Text(
-                            task['title'] ?? "Untitled",
-                            style: GoogleFonts.montserrat(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SizedBox(height: 4),
-                              Text("📌 Details: ${task['details'] ?? "-"}"),
-                              Text("📅 Date: ${task['date'] ?? "-"} at ${task['time'] ?? "-"}"),
-                              Text("📂 Category: ${task['category'] ?? "-"}"),
-                              Text("⚡ Priority: ${task['priority'] ?? "-"}"),
-                            ],
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit),
-                                onPressed: () {
-                                  _showEditDialog(context, index, task);
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete),
-                                onPressed: () {
-                                  widget.onTaskDelete(index);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+
+    if (uid == null) {
+      return const Center(child: Text("User tidak login"));
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('tasks')
+          .doc(uid)
+          .collection('user_tasks')
+          .orderBy('created_at', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final taskDocs = snapshot.data?.docs ?? [];
+
+        return SingleChildScrollView(
+          child: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Text(
+                      "Your Task Manager",
+                      style: GoogleFonts.montserrat(
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.teal,
+                      ),
                     ),
                   ),
                 ),
-              );
-            }),
-          ],
-        ),
-      ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    "Your Tasks",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                if (taskDocs.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text(
+                        "No tasks yet!",
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+                ...taskDocs.map((doc) {
+                  var data = doc.data() as Map<String, dynamic>;
+                  final docId = doc.id;
+
+                  Map<String, String> task = {
+                    'title': data['title'] ?? '',
+                    'details': data['details'] ?? '',
+                    'date': data['date'] ?? '',
+                    'time': data['time'] ?? '',
+                    'category': data['category'] ?? '',
+                    'priority': data['priority'] ?? '',
+                  };
+
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Card(
+                      elevation: 10,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ListTile(
+                              title: Text(
+                                task['title']!,
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 4),
+                                  Text("📌 Details: ${task['details']}"),
+                                  Text(
+                                      "📅 Date: ${task['date']} at ${task['time']}"),
+                                  Text("📂 Category: ${task['category']}"),
+                                  Text("⚡ Priority: ${task['priority']}"),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: const Icon(Icons.edit),
+                                    onPressed: () {
+                                      _showEditDialog(context, docId, task);
+                                    },
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.delete),
+                                    onPressed: () {
+                                      onTaskDelete(docId); // delete pakai docId
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  void _showEditDialog(BuildContext context, int index, Map<String, String> task) {
+  void _showEditDialog(
+      BuildContext context, String docId, Map<String, String> task) {
     final titleController = TextEditingController(text: task['title']);
     final detailsController = TextEditingController(text: task['details']);
-
-    DateTime selectedDate = DateTime.tryParse(task['date'] ?? "") ?? DateTime.now();
+    DateTime selectedDate =
+        DateTime.tryParse(task['date'] ?? "") ?? DateTime.now();
     List<String> timeParts = (task['time'] ?? "00:00").split(":");
     TimeOfDay selectedTime = TimeOfDay(
       hour: int.tryParse(timeParts[0]) ?? 0,
@@ -146,8 +176,13 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextField(controller: titleController, decoration: const InputDecoration(labelText: "Title")),
-                    TextField(controller: detailsController, decoration: const InputDecoration(labelText: "Details")),
+                    TextField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: "Title")),
+                    TextField(
+                        controller: detailsController,
+                        decoration:
+                            const InputDecoration(labelText: "Details")),
                     ElevatedButton(
                       onPressed: () async {
                         DateTime? picked = await showDatePicker(
@@ -160,7 +195,8 @@ class _HomePageState extends State<HomePage> {
                           setState(() => selectedDate = picked);
                         }
                       },
-                      child: Text("Pick Date: ${selectedDate.toLocal()}".split(' ')[0]),
+                      child: Text(
+                          "Pick Date: ${selectedDate.toLocal()}".split(' ')[0]),
                     ),
                     ElevatedButton(
                       onPressed: () async {
@@ -192,7 +228,7 @@ class _HomePageState extends State<HomePage> {
                       'category': selectedCategory,
                       'priority': selectedPriority,
                     };
-                    widget.onTaskUpdate(index, updatedTask);
+                    onTaskUpdate(docId, updatedTask); // update pakai docId
                     Navigator.of(context).pop();
                   },
                   child: const Text("Save"),

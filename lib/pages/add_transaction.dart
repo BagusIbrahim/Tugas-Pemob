@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:hive/hive.dart';
+import '../models/task_model.dart';
 
 class TransactionPage extends StatefulWidget {
   const TransactionPage({super.key});
@@ -22,7 +22,7 @@ class _TransactionPageState extends State<TransactionPage> {
   final List<String> _priorities = ["High", "Medium", "Low"];
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime(2000),
@@ -36,7 +36,7 @@ class _TransactionPageState extends State<TransactionPage> {
   }
 
   Future<void> _selectTime(BuildContext context) async {
-    final TimeOfDay? picked = await showTimePicker(
+    final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
     );
@@ -60,40 +60,23 @@ class _TransactionPageState extends State<TransactionPage> {
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("User tidak ditemukan")),
-      );
-      return;
-    }
+    final task = TaskModel(
+      title: _taskNameController.text,
+      details: _taskDetailController.text,
+      date: DateFormat.yMd().format(_selectedDate!),
+      time: _selectedTime!.format(context),
+      category: _selectedCategory!,
+      priority: _selectedPriority!,
+    );
 
-    final taskData = {
-      'title': _taskNameController.text,
-      'details': _taskDetailController.text,
-      'date': DateFormat.yMd().format(_selectedDate!),
-      'time': _selectedTime!.format(context),
-      'category': _selectedCategory!,
-      'priority': _selectedPriority!,
-      'created_at': FieldValue.serverTimestamp(),
-    };
+    final box = Hive.box<TaskModel>('tasksBox');
+    await box.add(task);
 
-    try {
-      await FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(user.uid)
-          .collection('user_tasks')
-          .add(taskData);
-
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Task berhasil ditambahkan")),
       );
-
-      Navigator.pop(context); // Kembali ke halaman sebelumnya
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Gagal menambahkan task: $e")),
-      );
+      Navigator.pop(context);
     }
   }
 

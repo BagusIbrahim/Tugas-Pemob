@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:calendar_appbar/calendar_appbar.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-import 'package:tugasanalisis/pages/add_transaction.dart';
-import 'package:tugasanalisis/pages/home_page.dart';
-import 'package:tugasanalisis/pages/analityc.dart';
-import '../pages/auth_screen.dart';
+import '../models/task_model.dart';
+import '../pages/add_transaction.dart';
+import '../pages/home_page.dart';
+import '../pages/analityc.dart';
+import '../providers/theme_provider.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -17,35 +18,48 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   DateTime selectedDate = DateTime.now();
+  final taskBox = Hive.box<TaskModel>('tasksBox');
 
-  // Fungsi logout
-  Future<void> _logout() async {
-    await FirebaseAuth.instance.signOut();
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const AuthScreen()),
-      );
-    }
+  void _addTask(TaskModel task) async {
+    await taskBox.add(task);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Task berhasil disimpan')),
+    );
+    setState(() {});
+  }
+
+  void _updateTask(int index, TaskModel updatedTask) async {
+    await taskBox.putAt(index, updatedTask);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Task berhasil diperbarui')),
+    );
+    setState(() {});
+  }
+
+  void _deleteTask(int index) async {
+    await taskBox.deleteAt(index);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Task berhasil dihapus')),
+    );
+    setState(() {});
   }
 
   void _showLogoutDialog() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Konfirmasi Logout'),
-        content: const Text('Apakah Anda yakin ingin keluar?'),
+        title: const Text('Konfirmasi Keluar'),
+        content: const Text('Apakah Anda yakin ingin keluar dari aplikasi?'),
         actions: [
           TextButton(
             child: const Text('Batal'),
-            onPressed: () {
-              Navigator.of(ctx).pop();
-            },
+            onPressed: () => Navigator.of(ctx).pop(),
           ),
           FilledButton(
-            child: const Text('Logout'),
+            child: const Text('Keluar'),
             onPressed: () {
               Navigator.of(ctx).pop();
-              _logout();
+              Navigator.of(context).pop(); // keluar dari MainPage
             },
           ),
         ],
@@ -53,57 +67,37 @@ class _MainPageState extends State<MainPage> {
     );
   }
 
-  // Fungsi untuk simpan task ke Firestore
-  Future<void> _addTask(Map<String, String> task) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      await FirebaseFirestore.instance
-          .collection('tasks')
-          .doc(user.uid)
-          .collection('user_tasks')
-          .add({
-        'title': task['title'],
-        'details': task['details'],
-        'date': task['date'],
-        'time': task['time'],
-        'category': task['category'],
-        'priority': task['priority'],
-        'created_at': FieldValue.serverTimestamp(),
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Task berhasil disimpan ke Firebase')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menyimpan task: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Beranda"),
-        backgroundColor: Colors.teal,
+        backgroundColor: Theme.of(context).primaryColor,
       ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.teal),
-              child: Text(
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor,
+              ),
+              child: const Text(
                 'Menu',
                 style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
+            SwitchListTile(
+              title: const Text("Tema Gelap"),
+              secondary: const Icon(Icons.dark_mode),
+              value: themeProvider.isDarkMode,
+              onChanged: (val) => themeProvider.toggleTheme(val),
+            ),
             ListTile(
               leading: const Icon(Icons.logout),
-              title: const Text('Logout'),
+              title: const Text('Keluar'),
               onTap: () {
                 Navigator.pop(context);
                 _showLogoutDialog();
@@ -114,21 +108,19 @@ class _MainPageState extends State<MainPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          final newTask = await Navigator.of(context).push<Map<String, String>>(
-            MaterialPageRoute(builder: (context) => const TransactionPage()),
+          final newTask = await Navigator.of(context).push<TaskModel>(
+            MaterialPageRoute(builder: (_) => const TransactionPage()),
           );
 
-          if (newTask != null) {
-            await _addTask(newTask);
-          }
+          if (newTask != null) _addTask(newTask);
         },
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).primaryColorLight,
         child: const Icon(Icons.add),
       ),
       body: Column(
         children: [
           CalendarAppBar(
-            accent: Colors.teal,
+            accent: Theme.of(context).primaryColor,
             backButton: false,
             onDateChanged: (value) {
               setState(() {
@@ -140,49 +132,9 @@ class _MainPageState extends State<MainPage> {
           ),
           Expanded(
             child: HomePage(
-              onTaskUpdate:
-                  (String docId, Map<String, String> updatedTask) async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) return;
-
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('tasks')
-                      .doc(user.uid)
-                      .collection('user_tasks')
-                      .doc(docId)
-                      .update(updatedTask);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Task berhasil diperbarui')),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal update task: $e')),
-                  );
-                }
-              },
-              onTaskDelete: (String docId) async {
-                final user = FirebaseAuth.instance.currentUser;
-                if (user == null) return;
-
-                try {
-                  await FirebaseFirestore.instance
-                      .collection('tasks')
-                      .doc(user.uid)
-                      .collection('user_tasks')
-                      .doc(docId)
-                      .delete();
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Task berhasil dihapus')),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal hapus task: $e')),
-                  );
-                }
-              },
+              selectedDate: selectedDate,
+              onTaskUpdate: _updateTask,
+              onTaskDelete: _deleteTask,
             ),
           ),
         ],
@@ -196,16 +148,17 @@ class _MainPageState extends State<MainPage> {
           children: [
             IconButton(
               onPressed: () {},
-              icon: const Icon(Icons.home, color: Colors.teal),
+              icon: Icon(Icons.home, color: Theme.of(context).primaryColor),
             ),
             const SizedBox(width: 40),
             IconButton(
               onPressed: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const AnalitycPage()),
+                  MaterialPageRoute(builder: (_) => const AnalitycPage()),
                 );
               },
-              icon: const Icon(Icons.analytics, color: Colors.teal),
+              icon:
+                  Icon(Icons.analytics, color: Theme.of(context).primaryColor),
             ),
           ],
         ),
